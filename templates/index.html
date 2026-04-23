@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akıllı Şehir | Trafik Kontrol Merkezi</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e1e2f; color: white; margin: 0; padding: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; color: #00d2ff; }
+        .header p { color: #8e8e9f; }
+        
+        .dashboard { display: flex; justify-content: space-around; flex-wrap: wrap; }
+        .card { background-color: #2a2a40; border-radius: 10px; padding: 20px; width: 30%; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        
+        .value-text { font-size: 3em; font-weight: bold; margin: 10px 0; }
+        .text-blue { color: #00d2ff; }
+        .text-green { color: #00ff88; }
+        
+        .alert-card { transition: background-color 0.3s; }
+        .alert-danger { background-color: #ff3366 !important; color: white !important; animation: blink 1s infinite; }
+        
+        @keyframes blink { 50% { box-shadow: 0 0 20px #ff3366; } }
+        
+        .timestamp { text-align: center; margin-top: 20px; color: #8e8e9f; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>🏢 Akıllı Şehir Kontrol Merkezi</h1>
+        <p>Gerçek Zamanlı Veri Füzyonu & Yapay Zeka Tahmin Sistemi</p>
+    </div>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>📡 Otoyol Sensörü (Canlı)</h3>
+            <div class="value-text text-blue" id="current_volume">---</div>
+            <p>Araç / Saat</p>
+            <p style="color:#8e8e9f" id="weather">Hava: ---</p>
+        </div>
+
+        <div class="card">
+            <h3>🧠 Gelecek 1 Saat Tahmini</h3>
+            <div class="value-text text-green" id="prediction_volume">---</div>
+            <p>Tahmini Araç / Saat</p>
+            <p style="color:#00ff88">XGBoost AI Modeli Devrede</p>
+        </div>
+
+        <div class="card alert-card" id="alert_box">
+            <h3>🚨 Olay Takip Sistemi</h3>
+            <div class="value-text" id="severity_level">Temiz</div>
+            <p id="alert_text">Normal Akış</p>
+        </div>
+    </div>
+
+    <div class="timestamp" id="last_update">Son Güncelleme: Bekleniyor...</div>
+
+    <script>
+        // Her 1 saniyede bir Flask sunucusundan (dolayısıyla Redis'ten) veriyi çek
+        function fetchData() {
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    if(data.error) return;
+
+                    // Değerleri Ekrana Yazdır
+                    document.getElementById('current_volume').innerText = data.traffic_volume;
+                    document.getElementById('prediction_volume').innerText = Math.round(data.gelecek_tahmini);
+                    
+                    // Sıcaklığı Celcius'a çevir
+                    let tempCelsius = (data.temp - 273.15).toFixed(1);
+                    document.getElementById('weather').innerText = "Sıcaklık: " + tempCelsius + " °C";
+                    
+                    document.getElementById('last_update').innerText = "Son Sistem Saati: " + data.date_time;
+
+                    // Kaza Durumunu Kontrol Et ve Ekrana Şiddetini Yazdır
+                    let severity = data.Severity || 0;
+                    let alertBox = document.getElementById('alert_box');
+                    let alertText = document.getElementById('alert_text');
+                    let severityLevel = document.getElementById('severity_level');
+
+                    if (severity > 0) {
+                        alertBox.classList.add('alert-danger');
+                        severityLevel.innerText = severity; // Rakamı yazdır (örn: 3)
+                        // Altına ne anlama geldiğini açıkça belirt
+                        alertText.innerHTML = "Şiddetinde Kaza!<br><span style='font-size:0.8em; opacity:0.8;'>(1-4 Hasar Skalası)</span>";
+                    } else {
+                        alertBox.classList.remove('alert-danger');
+                        severityLevel.innerText = "Temiz";
+                        alertText.innerText = "Otoyol Açık";
+                    }
+                })
+                .catch(err => console.log("Veri çekme hatası:", err));
+        }
+
+        setInterval(fetchData, 1000); // Saniyede 1 yenile
+    </script>
+</body>
+</html>
